@@ -1,6 +1,6 @@
 # Basic AI Project
 
-이 프로젝트는 PyTorch를 사용하여 MNIST 데이터셋에 대한 간단한 MLP 분류 모델을 구현합니다.
+이 프로젝트는 PyTorch를 사용하여 MNIST 데이터셋에 대한 간단한 MLP 분류 모델을 구현합니다.!
 
 ## 프로젝트 구조
 
