@@ -102,27 +102,45 @@ class Trainer:
                 images = [image.to(self.cfg.DEVICE) for image in images]
                 targets = [{k: v.to(self.cfg.DEVICE) for k, v in t.items()} for t in targets]
                 
-                # 검증 손실 계산
+                # 검증 손실 계산을 위해 일시적으로 train 모드로 전환
+                self.model.train()
                 loss_dict = self.model(images, targets)
-                losses = sum(loss for loss in loss_dict.values())
-                val_loss += losses.item()
+                if loss_dict is not None:
+                    losses = sum(loss for loss in loss_dict.values())
+                    val_loss += losses.item()
+                else:
+                    # loss_dict가 None인 경우 스킵
+                    print(f"Warning: loss_dict is None during validation")
                 
-                # 예측
+                # 예측을 위해 다시 eval 모드로 전환
+                self.model.eval()
                 outputs = self.model(images)
                 
-                # mAP 계산을 위한 예측값과 정답 수집
-                for out, target in zip(outputs, targets):
-                    pred_boxes.append(out['boxes'].cpu())
-                    pred_labels.append(out['labels'].cpu())
-                    pred_scores.append(out['scores'].cpu())
-                    gt_boxes.append(target['boxes'].cpu())
-                    gt_labels.append(target['labels'].cpu())
+                # outputs가 None이 아닌지 확인
+                if outputs is not None:
+                    # mAP 계산을 위한 예측값과 정답 수집
+                    for out, target in zip(outputs, targets):
+                        # out이 예상한 형태인지 확인
+                        if isinstance(out, dict) and 'boxes' in out:
+                            pred_boxes.append(out['boxes'].cpu())
+                            pred_labels.append(out['labels'].cpu())
+                            pred_scores.append(out['scores'].cpu())
+                            gt_boxes.append(target['boxes'].cpu())
+                            gt_labels.append(target['labels'].cpu())
+                        else:
+                            print(f"Warning: Invalid output format: {type(out)}")
+                else:
+                    print(f"Warning: Model output is None during validation")
         
-        # mAP 계산
-        val_map = calculate_mAP(pred_boxes, pred_labels, pred_scores, 
-                              gt_boxes, gt_labels)
+        # mAP 계산 (예측값이 있는 경우에만)
+        if pred_boxes and gt_boxes:
+            val_map = calculate_mAP(pred_boxes, pred_labels, pred_scores, 
+                                  gt_boxes, gt_labels)
+        else:
+            val_map = 0.0
+            print("Warning: No valid predictions for mAP calculation")
         
-        val_loss = val_loss / len(self.val_loader)
+        val_loss = val_loss / len(self.val_loader) if len(self.val_loader) > 0 else 0.0
         
         return val_loss, val_map
     

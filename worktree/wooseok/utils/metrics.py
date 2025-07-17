@@ -24,8 +24,25 @@ def calculate_mAP(pred_boxes, pred_labels, pred_scores, gt_boxes, gt_labels, iou
         gt_boxes (list[tensor]): 정답 박스들 [M, 4]
         gt_labels (list[tensor]): 정답 레이블들 [M]
     """
-    n_classes = max(torch.max(torch.cat(pred_labels)).item(), 
-                   torch.max(torch.cat(gt_labels)).item()) + 1
+    # 입력 검증
+    if not pred_boxes or not gt_boxes:
+        print("Warning: Empty prediction or ground truth boxes")
+        return 0.0
+    
+    try:
+        # 빈 텐서 필터링
+        filtered_pred_labels = [label for label in pred_labels if len(label) > 0]
+        filtered_gt_labels = [label for label in gt_labels if len(label) > 0]
+        
+        if not filtered_pred_labels or not filtered_gt_labels:
+            print("Warning: No valid labels found")
+            return 0.0
+            
+        n_classes = max(torch.max(torch.cat(filtered_pred_labels)).item(), 
+                       torch.max(torch.cat(filtered_gt_labels)).item()) + 1
+    except Exception as e:
+        print(f"Error calculating number of classes: {e}")
+        return 0.0
     
     # 클래스별 AP 계산
     aps = []
@@ -88,7 +105,12 @@ def calculate_mAP(pred_boxes, pred_labels, pred_scores, gt_boxes, gt_labels, iou
         ap = calculate_ap(recalls, precisions)
         aps.append(ap)
     
-    return np.mean(aps)
+    # aps가 비어있지 않은 경우에만 평균 계산
+    if aps:
+        return np.mean(aps)
+    else:
+        print("Warning: No valid AP values calculated")
+        return 0.0
 
 def box_iou(box1, box2):
     """두 박스 세트 간의 IoU 계산"""
