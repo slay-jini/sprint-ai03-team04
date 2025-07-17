@@ -103,3 +103,23 @@ if __name__ == "__main__":
         print("박스 수:", len(targets[0]['boxes']))
         print("레이블:", targets[0]['labels'])
         break
+
+# Colab에서 사용할 수 있는 간단한 데이터셋 생성 함수
+def create_colab_dataset(json_path, img_dir):
+    """
+    Colab에서 쉽게 데이터셋을 생성할 수 있는 함수
+    
+    Args:
+        json_path (str): COCO format annotation file path
+        img_dir (str): Images directory path
+    
+    Returns:
+        PillDetectionDataset: 생성된 데이터셋 객체
+    """
+    try:
+        dataset = PillDetectionDataset(json_file=json_path, img_dir=img_dir)
+        print(f"✅ 데이터셋 생성 성공: {len(dataset)} 개의 이미지")
+        return dataset
+    except Exception as e:
+        print(f"❌ 데이터셋 생성 실패: {e}")
+        return None

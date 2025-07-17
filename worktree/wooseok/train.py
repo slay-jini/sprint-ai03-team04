@@ -9,12 +9,15 @@ from torch.utils.data import DataLoader, random_split
 def collate_fn(batch):
     return tuple(zip(*batch))
 
-def main():
-    # 데이터셋 로드
-    dataset = PillDetectionDataset(
-        json_file=cfg.TRAIN_JSON,
-        img_dir=cfg.TRAIN_IMG_DIR
-    )
+def main(dataset=None):
+    # 데이터셋 로드 (외부에서 전달받거나 기본값 사용)
+    if dataset is None:
+        dataset = PillDetectionDataset(
+            json_file=cfg.TRAIN_JSON,
+            img_dir=cfg.TRAIN_IMG_DIR
+        )
+    
+    print(f"Using dataset with {len(dataset)} samples")
     
     # 학습/검증 데이터 분할
     val_size = int(len(dataset) * cfg.VAL_RATIO)
@@ -59,3 +62,21 @@ if __name__ == "__main__":
         cfg.DEVICE = 'cpu'
     
     main()
+
+# Colab에서 데이터셋 객체와 함께 학습을 실행하는 함수
+def train_with_dataset(dataset):
+    """
+    Colab에서 생성된 데이터셋 객체를 사용하여 학습을 실행합니다.
+    
+    Args:
+        dataset: PillDetectionDataset 객체
+    """
+    # CUDA 사용 가능 여부 확인
+    if torch.cuda.is_available():
+        print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+    else:
+        print("Using CPU")
+        cfg.DEVICE = 'cpu'
+    
+    # 데이터셋 객체와 함께 학습 시작
+    main(dataset)
