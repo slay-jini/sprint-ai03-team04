@@ -192,10 +192,10 @@ tensorboard_logs/
 wandb/
 
 # Data files (대용량 데이터는 일반적으로 제외)
-# data/
-# dataset/
-# *.csv
-# *.json
+data/
+dataset/
+*.csv
+*.json
 
 # Temporary files
 tmp/
