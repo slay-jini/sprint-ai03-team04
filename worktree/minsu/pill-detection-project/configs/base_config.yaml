@@ -1,0 +1,61 @@
+# configs/base_config.yaml
+# 기본 설정 파일
+
+# 데이터 경로
+data:
+  train_path: "./ai03-level1-project/train_images"
+  val_split: 0.2 # 검증 데이터 비율
+
+# 모델 기본 설정
+model:
+  name: "faster_rcnn"
+  num_classes: 5 # 4개 알약 + 배경
+  backbone: "resnet50"
+  pretrained: true
+
+# 학습 설정
+training:
+  batch_size: 8
+  epochs: 10
+  learning_rate: 0.001
+
+# 옵티마이저
+optimizer:
+  type: "sgd"
+  momentum: 0.9
+  weight_decay: 0.0005
+
+# 스케줄러
+scheduler:
+  type: "step"
+  step_size: 30
+  gamma: 0.1
+
+# 검증
+validation:
+  interval: 1 # 매 에폭마다
+
+# 체크포인트
+checkpoint:
+  save_interval: 5
+
+# 출력 경로
+output:
+  checkpoint_dir: "outputs/checkpoints"
+  log_dir: "outputs/logs"
+  prediction_dir: "outputs/predictions"
+
+# 디바이스
+device: "cuda"
+
+# 추론 설정
+inference:
+  score_threshold: 0.1
+  nms_threshold: 0.3
+
+# 데이터 증강
+augmentation:
+  horizontal_flip: true
+  vertical_flip: false
+  rotation_range: 15
+  brightness_range: [0.8, 1.2]

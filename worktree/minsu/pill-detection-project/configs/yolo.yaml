@@ -1,0 +1,49 @@
+# configs/yolo.yaml
+_base_: base_config.yaml # 상속 명시
+
+# YOLOv11 전용 설정
+model:
+  name: "yolo"
+  version: "11x" # 11n(nano), 11s(small), 11m(medium), 11l(large), 11x(extra large)
+  num_classes: 5 # 4개 알약 + 배경
+
+# 학습 설정 (YOLOv11에 최적화)
+training:
+  batch_size: 16 # YOLOv11는 더 큰 배치 가능
+  epochs: 10
+  learning_rate: 0.01
+  gradient_clip: 10.0
+
+# YOLOv11 전용 추론 설정
+inference:
+  score_threshold: 0.25 # YOLOv11 기본값
+  nms_threshold: 0.45 # YOLOv11 기본값
+
+# YOLOv11 특화 증강
+augmentation:
+  horizontal_flip: true
+  vertical_flip: false
+  rotation_range: 10 # YOLOv11는 적당한 회전
+  brightness_range: [0.8, 1.2]
+  scale_range: [0.8, 1.2]
+  mosaic: true # YOLOv8 특화 증강
+  mixup: false # 작은 데이터셋에서는 비활성화
+
+# 옵티마이저 (YOLOv8는 AdamW 선호)
+optimizer:
+  type: "adamw"
+  weight_decay: 0.0005
+  momentum: 0.937
+
+# 스케줄러 (YOLOv11용)
+scheduler:
+  type: "cosine"
+  warmup_epochs: 3
+  warmup_momentum: 0.8
+# 🎯 모델 버전 선택
+# configs/yolo.yaml에서 version만 변경:
+# v11n: 가장 빠름, 낮은 정확도
+# v11s: 균형잡힌 선택 ⭐
+# v11m: 더 높은 정확도
+# v11l: 높은 정확도, 느림
+# v11x: 최고 정확도, 가장 느림
