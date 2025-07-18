@@ -2,7 +2,7 @@
 name = "pill-detection"
 version = "0.1.0"
 description = "A project to detect pills in images."
-authors = [{ name = "alyac4", email = "" }]
+authors = [{ name = "alyac4", email = "alyac4@codeit.kr" }]
 requires-python = ">=3.9"
 
 # 개발에 필요한 직접적인 의존성들을 여기에 명시합니다.
@@ -26,4 +26,9 @@ dev = [
     "pytest",
     "black",
     "ruff",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
 ]
