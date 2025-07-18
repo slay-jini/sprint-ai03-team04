@@ -16,11 +16,10 @@ class Trainer:
         self.val_loader = val_loader
         self.cfg = cfg
         
-        # 옵티마이저 설정
-        self.optimizer = optim.SGD(
+        # 옵티마이저 설정 (Adam으로 변경)
+        self.optimizer = optim.Adam(
             model.parameters(),
             lr=cfg.LEARNING_RATE,
-            momentum=cfg.MOMENTUM,
             weight_decay=cfg.WEIGHT_DECAY
         )
         

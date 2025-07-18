@@ -74,48 +74,98 @@ class YOLOv3(nn.Module):
             return self.transform_predictions(detections, images.shape)
 
     def compute_loss(self, predictions, targets):
-        """YOLO loss 계산 - 간단한 회귀 손실"""
+        """YOLO loss 계산 - 개선된 회귀 손실"""
         device = predictions.device
         batch_size = predictions.shape[0]
         
         # 예측값을 적절한 형태로 변환
         # predictions: [batch_size, (num_classes + 5) * 3, grid_height, grid_width]
-        pred_reshaped = predictions.view(batch_size, -1)
+        grid_h, grid_w = predictions.shape[2], predictions.shape[3]
+        num_anchors = 3
         
-        # 타겟에서 박스와 레이블 정보 추출
+        # 예측값을 (batch_size, grid_h, grid_w, num_anchors, 5 + num_classes) 형태로 변환
+        predictions = predictions.view(batch_size, num_anchors, 5 + self.num_classes, grid_h, grid_w)
+        predictions = predictions.permute(0, 3, 4, 1, 2).contiguous()  # [B, H, W, 3, 5+C]
+        
+        # 예측값 분리
+        pred_xy = torch.sigmoid(predictions[..., 0:2])  # center x, y
+        pred_wh = predictions[..., 2:4]  # width, height
+        pred_conf = torch.sigmoid(predictions[..., 4:5])  # objectness
+        pred_cls = predictions[..., 5:]  # class probabilities
+        
+        # 손실 계산
         total_loss = 0.0
         valid_samples = 0
         
         for i, target in enumerate(targets):
             if len(target['boxes']) > 0:
-                # 박스 좌표 정규화 (이미지 크기로 나누기)
-                boxes = target['boxes']
+                # 타겟 박스를 grid cell에 할당
+                boxes = target['boxes'] / 400.0  # 정규화 (이미지 크기가 400이라고 가정)
                 labels = target['labels']
                 
-                # 간단한 회귀 손실 계산
-                # 실제로는 grid cell assignment, objectness, class prediction 등 복잡한 계산 필요
-                
-                # 예측값의 일부를 사용하여 박스 좌표 예측
-                pred_sample = pred_reshaped[i]
-                
-                # 박스 좌표를 평균내어 단일 값으로 만들기
-                box_center_x = (boxes[:, 0] + boxes[:, 2]) / 2.0
-                box_center_y = (boxes[:, 1] + boxes[:, 3]) / 2.0
-                
-                # 타겟 값 (정규화)
-                target_val = (box_center_x.mean() + box_center_y.mean()) / 400.0  # 대략적인 정규화
-                
-                # 예측값의 평균과 타겟 값 간의 MSE 손실
-                pred_val = pred_sample.mean()
-                loss = torch.nn.functional.mse_loss(pred_val, target_val.to(device))
-                
-                total_loss += loss
-                valid_samples += 1
+                # 각 타겟 박스에 대해 가장 가까운 grid cell 찾기
+                for box, label in zip(boxes, labels):
+                    # 박스 중심점을 grid 좌표로 변환
+                    center_x = (box[0] + box[2]) / 2.0
+                    center_y = (box[1] + box[3]) / 2.0
+                    
+                    grid_x = int(center_x * grid_w)
+                    grid_y = int(center_y * grid_h)
+                    
+                    # grid 범위 확인
+                    if 0 <= grid_x < grid_w and 0 <= grid_y < grid_h:
+                        # 박스 크기
+                        width = box[2] - box[0]
+                        height = box[3] - box[1]
+                        
+                        # 가장 적합한 앵커 선택 (간단히 첫 번째 앵커 사용)
+                        anchor_idx = 0
+                        
+                        # 타겟 값 생성
+                        target_xy = torch.tensor([center_x * grid_w - grid_x, center_y * grid_h - grid_y], device=device)
+                        target_wh = torch.tensor([width * grid_w, height * grid_h], device=device)
+                        target_conf = torch.tensor([1.0], device=device)
+                        
+                        # 해당 grid cell의 예측값
+                        pred_xy_cell = pred_xy[i, grid_y, grid_x, anchor_idx]
+                        pred_wh_cell = pred_wh[i, grid_y, grid_x, anchor_idx]
+                        pred_conf_cell = pred_conf[i, grid_y, grid_x, anchor_idx]
+                        
+                        # 좌표 손실 (MSE)
+                        xy_loss = torch.nn.functional.mse_loss(pred_xy_cell, target_xy)
+                        wh_loss = torch.nn.functional.mse_loss(pred_wh_cell, target_wh)
+                        
+                        # objectness 손실
+                        conf_loss = torch.nn.functional.binary_cross_entropy(pred_conf_cell, target_conf)
+                        
+                        # 클래스 손실 (간단히 0번 클래스로 설정)
+                        if label < self.num_classes:
+                            target_cls = torch.zeros(self.num_classes, device=device)
+                            target_cls[label] = 1.0
+                            pred_cls_cell = torch.softmax(pred_cls[i, grid_y, grid_x, anchor_idx], dim=0)
+                            cls_loss = torch.nn.functional.cross_entropy(
+                                pred_cls[i, grid_y, grid_x, anchor_idx].unsqueeze(0), 
+                                label.unsqueeze(0).to(device)
+                            )
+                        else:
+                            cls_loss = torch.tensor(0.0, device=device)
+                        
+                        # 총 손실
+                        sample_loss = 5.0 * xy_loss + 5.0 * wh_loss + 1.0 * conf_loss + 1.0 * cls_loss
+                        total_loss += sample_loss
+                        valid_samples += 1
+        
+        # no-object 손실 (background)
+        no_obj_loss = torch.nn.functional.binary_cross_entropy(
+            pred_conf.view(-1), 
+            torch.zeros_like(pred_conf.view(-1))
+        )
+        total_loss += 0.5 * no_obj_loss
         
         if valid_samples > 0:
-            avg_loss = total_loss / valid_samples
+            avg_loss = total_loss / max(valid_samples, 1)
         else:
-            avg_loss = torch.tensor(0.0, requires_grad=True, device=device)
+            avg_loss = total_loss
         
         return {"loss": avg_loss}
 
@@ -123,51 +173,68 @@ class YOLOv3(nn.Module):
         """예측값을 바운딩 박스로 변환"""
         batch_size = detections.shape[0]
         device = detections.device
+        grid_h, grid_w = detections.shape[2], detections.shape[3]
+        num_anchors = 3
+        
+        # 예측값을 적절한 형태로 변환
+        detections = detections.view(batch_size, num_anchors, 5 + self.num_classes, grid_h, grid_w)
+        detections = detections.permute(0, 3, 4, 1, 2).contiguous()  # [B, H, W, 3, 5+C]
+        
+        # 예측값 분리
+        pred_xy = torch.sigmoid(detections[..., 0:2])  # center x, y
+        pred_wh = detections[..., 2:4]  # width, height
+        pred_conf = torch.sigmoid(detections[..., 4:5])  # objectness
+        pred_cls = torch.softmax(detections[..., 5:], dim=-1)  # class probabilities
         
         results = []
         
         for b in range(batch_size):
-            # 예측값에서 박스 정보 추출 (간단한 구현)
-            pred_flat = detections[b].view(-1)
+            boxes_list = []
+            labels_list = []
+            scores_list = []
             
-            # 예측값에서 몇 개의 박스 생성 (실제로는 NMS 등 후처리 필요)
-            num_predictions = min(5, pred_flat.shape[0] // 6)  # 최대 5개 박스
+            for y in range(grid_h):
+                for x in range(grid_w):
+                    for a in range(num_anchors):
+                        conf = pred_conf[b, y, x, a, 0]
+                        
+                        # 신뢰도 임계값 확인
+                        if conf > 0.3:  # 더 높은 임계값
+                            # 박스 좌표 계산
+                            center_x = (x + pred_xy[b, y, x, a, 0]) / grid_w
+                            center_y = (y + pred_xy[b, y, x, a, 1]) / grid_h
+                            width = torch.exp(pred_wh[b, y, x, a, 0]) / grid_w
+                            height = torch.exp(pred_wh[b, y, x, a, 1]) / grid_h
+                            
+                            # 이미지 좌표로 변환 (400x400 이미지 가정)
+                            img_w, img_h = 400, 400
+                            
+                            x1 = (center_x - width/2) * img_w
+                            y1 = (center_y - height/2) * img_h
+                            x2 = (center_x + width/2) * img_w
+                            y2 = (center_y + height/2) * img_h
+                            
+                            # 박스 좌표 클램핑
+                            x1 = torch.clamp(x1, 0, img_w)
+                            y1 = torch.clamp(y1, 0, img_h)
+                            x2 = torch.clamp(x2, 0, img_w)
+                            y2 = torch.clamp(y2, 0, img_h)
+                            
+                            # 유효한 박스인지 확인
+                            if x2 > x1 and y2 > y1:
+                                # 가장 높은 클래스 확률의 클래스 선택
+                                class_conf, class_pred = torch.max(pred_cls[b, y, x, a], dim=0)
+                                final_score = conf * class_conf
+                                
+                                if final_score > 0.1:  # 최종 신뢰도 임계값
+                                    boxes_list.append([x1.item(), y1.item(), x2.item(), y2.item()])
+                                    labels_list.append(class_pred.item())
+                                    scores_list.append(final_score.item())
             
-            if num_predictions > 0:
-                # 예측값에서 박스 좌표 추출
-                boxes_list = []
-                labels_list = []
-                scores_list = []
-                
-                for i in range(num_predictions):
-                    start_idx = i * 6
-                    if start_idx + 5 < pred_flat.shape[0]:
-                        # 박스 좌표 (x1, y1, x2, y2)
-                        x1 = torch.clamp(pred_flat[start_idx] * 200, 0, 400)
-                        y1 = torch.clamp(pred_flat[start_idx + 1] * 200, 0, 400)
-                        x2 = torch.clamp(pred_flat[start_idx + 2] * 200 + x1, x1 + 10, 400)
-                        y2 = torch.clamp(pred_flat[start_idx + 3] * 200 + y1, y1 + 10, 400)
-                        
-                        # 신뢰도 점수
-                        score = torch.sigmoid(pred_flat[start_idx + 4])
-                        
-                        # 클래스 (간단히 0으로 설정)
-                        label = 0
-                        
-                        if score > 0.1:  # 최소 신뢰도 임계값
-                            boxes_list.append([x1.item(), y1.item(), x2.item(), y2.item()])
-                            labels_list.append(label)
-                            scores_list.append(score.item())
-                
-                if boxes_list:
-                    boxes = torch.tensor(boxes_list, dtype=torch.float32, device=device)
-                    labels = torch.tensor(labels_list, dtype=torch.long, device=device)
-                    scores = torch.tensor(scores_list, dtype=torch.float32, device=device)
-                else:
-                    # 빈 예측
-                    boxes = torch.zeros((0, 4), dtype=torch.float32, device=device)
-                    labels = torch.zeros((0,), dtype=torch.long, device=device)
-                    scores = torch.zeros((0,), dtype=torch.float32, device=device)
+            if boxes_list:
+                boxes = torch.tensor(boxes_list, dtype=torch.float32, device=device)
+                labels = torch.tensor(labels_list, dtype=torch.long, device=device)
+                scores = torch.tensor(scores_list, dtype=torch.float32, device=device)
             else:
                 # 빈 예측
                 boxes = torch.zeros((0, 4), dtype=torch.float32, device=device)
