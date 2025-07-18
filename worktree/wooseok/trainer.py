@@ -23,11 +23,11 @@ class Trainer:
             weight_decay=cfg.WEIGHT_DECAY
         )
         
-        # 학습률 스케줄러 추가
+        # 학습률 스케줄러 추가 (더 적극적인 감소)
         self.scheduler = optim.lr_scheduler.StepLR(
             self.optimizer, 
-            step_size=3,  # 3 에폭마다
-            gamma=0.7     # 학습률을 0.7배로 감소
+            step_size=2,  # 2 에폭마다 (3 → 2로 변경)
+            gamma=0.5     # 학습률을 0.5배로 감소 (0.7 → 0.5로 변경)
         )
         
         # 학습 이력

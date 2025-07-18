@@ -91,12 +91,11 @@ class YOLOv3(nn.Module):
             return self.transform_predictions(detections, images.shape)
 
     def compute_loss(self, predictions, targets):
-        """YOLO loss 계산 - 개선된 회귀 손실"""
+        """YOLO loss 계산 - 스케일 문제 해결"""
         device = predictions.device
         batch_size = predictions.shape[0]
         
         # 예측값을 적절한 형태로 변환
-        # predictions: [batch_size, (num_classes + 5) * 3, grid_height, grid_width]
         grid_h, grid_w = predictions.shape[2], predictions.shape[3]
         num_anchors = 3
         
@@ -106,7 +105,7 @@ class YOLOv3(nn.Module):
         
         # 예측값 분리
         pred_xy = torch.sigmoid(predictions[..., 0:2])  # center x, y
-        pred_wh = predictions[..., 2:4]  # width, height (log space)
+        pred_wh = predictions[..., 2:4]  # width, height
         pred_conf = torch.sigmoid(predictions[..., 4:5])  # objectness
         pred_cls = predictions[..., 5:]  # class probabilities
         
@@ -114,7 +113,11 @@ class YOLOv3(nn.Module):
         coord_loss = 0.0
         conf_loss = 0.0
         cls_loss = 0.0
+        no_obj_loss = 0.0
         valid_targets = 0
+        
+        # 이미지 크기 설정 (416x416)
+        img_size = 416.0
         
         # 배치별 처리
         for b in range(batch_size):
@@ -123,13 +126,13 @@ class YOLOv3(nn.Module):
             if len(target['boxes']) == 0:
                 continue
                 
-            # 타겟 박스 정규화 (0-1 범위로)
-            boxes = target['boxes'].float() / 400.0  # 이미지 크기로 정규화
+            # 타겟 박스 정규화 (0-1 범위로) - 중요한 스케일 수정
+            boxes = target['boxes'].float() / img_size  # 416으로 정규화
             labels = target['labels']
             
             # 각 타겟 박스에 대해 처리
             for box, label in zip(boxes, labels):
-                # 박스 중심점과 크기 계산
+                # 박스 중심점과 크기 계산 (0-1 범위)
                 x_center = (box[0] + box[2]) / 2.0
                 y_center = (box[1] + box[3]) / 2.0
                 width = box[2] - box[0]
@@ -143,14 +146,20 @@ class YOLOv3(nn.Module):
                 grid_x = max(0, min(grid_x, grid_w - 1))
                 grid_y = max(0, min(grid_y, grid_h - 1))
                 
-                # 가장 적합한 앵커 선택 (첫 번째 앵커 사용)
+                # 첫 번째 앵커 사용
                 anchor_idx = 0
                 
-                # 타겟 좌표 (grid cell 내 상대 좌표)
-                target_x = x_center * grid_w - grid_x
-                target_y = y_center * grid_h - grid_y
-                target_w = torch.log(width * grid_w + 1e-8)  # log space, epsilon 추가
-                target_h = torch.log(height * grid_h + 1e-8)
+                # 타겟 좌표 (grid cell 내 상대 좌표, 0-1 범위)
+                target_x = x_center * grid_w - grid_x  # 0-1 범위
+                target_y = y_center * grid_h - grid_y  # 0-1 범위
+                target_w = width * grid_w  # 정규화된 크기
+                target_h = height * grid_h  # 정규화된 크기
+                
+                # 타겟을 텐서로 변환
+                target_x = torch.tensor(target_x, device=device, dtype=torch.float32)
+                target_y = torch.tensor(target_y, device=device, dtype=torch.float32)
+                target_w = torch.tensor(target_w, device=device, dtype=torch.float32)
+                target_h = torch.tensor(target_h, device=device, dtype=torch.float32)
                 
                 # 해당 grid cell의 예측값
                 pred_x = pred_xy[b, grid_y, grid_x, anchor_idx, 0]
@@ -159,13 +168,13 @@ class YOLOv3(nn.Module):
                 pred_h = pred_wh[b, grid_y, grid_x, anchor_idx, 1]
                 pred_conf_val = pred_conf[b, grid_y, grid_x, anchor_idx, 0]
                 
-                # 좌표 손실 (MSE)
-                coord_loss += torch.nn.functional.mse_loss(pred_x, torch.tensor(target_x, device=device))
-                coord_loss += torch.nn.functional.mse_loss(pred_y, torch.tensor(target_y, device=device))
-                coord_loss += torch.nn.functional.mse_loss(pred_w, target_w.to(device))
-                coord_loss += torch.nn.functional.mse_loss(pred_h, target_h.to(device))
+                # 좌표 손실 (MSE) - 스케일 정규화
+                coord_loss += torch.nn.functional.mse_loss(pred_x, target_x)
+                coord_loss += torch.nn.functional.mse_loss(pred_y, target_y)
+                coord_loss += torch.nn.functional.mse_loss(pred_w, target_w)
+                coord_loss += torch.nn.functional.mse_loss(pred_h, target_h)
                 
-                # Objectness 손실 (해당 위치에 객체가 있음)
+                # Objectness 손실
                 conf_loss += torch.nn.functional.binary_cross_entropy(
                     pred_conf_val, torch.tensor(1.0, device=device)
                 )
@@ -180,37 +189,20 @@ class YOLOv3(nn.Module):
                 
                 valid_targets += 1
         
-        # No-object 손실 (배경에 대한 confidence 억제)
-        # 타겟이 할당되지 않은 모든 위치에서 confidence를 0으로 만들기
-        no_obj_mask = torch.ones_like(pred_conf, device=device)
-        
-        # 타겟이 있는 위치는 마스크에서 제외
-        for b in range(batch_size):
-            target = targets[b]
-            if len(target['boxes']) > 0:
-                boxes = target['boxes'].float() / 400.0
-                for box in boxes:
-                    x_center = (box[0] + box[2]) / 2.0
-                    y_center = (box[1] + box[3]) / 2.0
-                    grid_x = int(x_center * grid_w)
-                    grid_y = int(y_center * grid_h)
-                    grid_x = max(0, min(grid_x, grid_w - 1))
-                    grid_y = max(0, min(grid_y, grid_h - 1))
-                    no_obj_mask[b, grid_y, grid_x, 0, 0] = 0  # 첫 번째 앵커만 사용
-        
-        no_obj_conf = pred_conf * no_obj_mask
+        # No-object 손실 (모든 grid cell에서 confidence를 0으로)
         no_obj_loss = torch.nn.functional.binary_cross_entropy(
-            no_obj_conf, torch.zeros_like(no_obj_conf)
+            pred_conf.view(-1), 
+            torch.zeros_like(pred_conf.view(-1))
         )
         
-        # 전체 손실 계산
+        # 손실 정규화 및 가중치 적용 (중요한 스케일 조정)
         if valid_targets > 0:
             coord_loss = coord_loss / valid_targets
             conf_loss = conf_loss / valid_targets
             cls_loss = cls_loss / valid_targets
         
-        # 가중치 적용
-        total_loss = 5.0 * coord_loss + 1.0 * conf_loss + 1.0 * cls_loss + 0.5 * no_obj_loss
+        # 더 작은 가중치로 조정하여 손실 스케일 감소
+        total_loss = 1.0 * coord_loss + 1.0 * conf_loss + 1.0 * cls_loss + 0.1 * no_obj_loss
         
         return {"loss": total_loss}
 
@@ -249,12 +241,12 @@ class YOLOv3(nn.Module):
                             center_x = (x + pred_xy[b, y, x, a, 0]) / grid_w
                             center_y = (y + pred_xy[b, y, x, a, 1]) / grid_h
                             
-                            # width, height를 log space에서 변환
-                            width = torch.exp(pred_wh[b, y, x, a, 0]) / grid_w
-                            height = torch.exp(pred_wh[b, y, x, a, 1]) / grid_h
+                            # width, height (linear space로 변경)
+                            width = torch.abs(pred_wh[b, y, x, a, 0]) / grid_w
+                            height = torch.abs(pred_wh[b, y, x, a, 1]) / grid_h
                             
-                            # 이미지 좌표로 변환 (400x400 이미지 가정)
-                            img_w, img_h = 400, 400
+                            # 이미지 좌표로 변환 (416x416 이미지)
+                            img_w, img_h = 416, 416
                             
                             x1 = (center_x - width/2) * img_w
                             y1 = (center_y - height/2) * img_h

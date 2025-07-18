@@ -9,7 +9,7 @@ class Config:
     
     # 모델 파라미터
     NUM_CLASSES = 100  # 알약 종류 수 (실제 클래스 수보다 크게 설정)
-    FREEZE_BACKBONE_LAYERS = 3  # ResNet 백본의 처음 몇 개 레이어를 고정할지 (0: 고정하지 않음)
+    FREEZE_BACKBONE_LAYERS = 0  # ResNet 백본 고정 해제 (3 → 0)
     
     # YOLO 파라미터
     ANCHORS = [[10, 13], [16, 30], [33, 23],  # 작은 객체용
@@ -19,14 +19,14 @@ class Config:
     NMS_THRESHOLD = 0.4   # Non-Maximum Suppression 임계값
     
     # 학습 파라미터
-    BATCH_SIZE = 4  # ResNet 백본 사용으로 인해 배치 크기 감소 (8 → 4)
+    BATCH_SIZE = 8  # 배치 크기 증가로 안정적인 gradient
     NUM_EPOCHS = 10  # 에폭 수 증가 (1 → 10)
-    LEARNING_RATE = 0.0001  # 더 낮은 학습률로 변경
+    LEARNING_RATE = 0.001  # 학습률 증가 (0.0001 → 0.001)
     MOMENTUM = 0.9
     WEIGHT_DECAY = 0.0005
     
     # 데이터 전처리
-    IMG_SIZE = (800, 800)  # 입력 이미지 크기
+    IMG_SIZE = (416, 416)  # 입력 이미지 크기 (800 → 416)
     
     # Early Stopping
     PATIENCE = 10  # 성능 향상이 없을 때 기다리는 에폭 수
