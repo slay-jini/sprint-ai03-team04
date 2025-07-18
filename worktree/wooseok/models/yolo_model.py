@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torchvision.models as models
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1):
@@ -24,33 +25,43 @@ class ResBlock(nn.Module):
         return x + self.block(x)
 
 class YOLOv3(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, freeze_backbone_layers=3):
         super().__init__()
         self.num_classes = num_classes
 
-        # Darknet-53 백본
-        self.backbone = nn.Sequential(
-            ConvBlock(3, 32),
-            ConvBlock(32, 64, stride=2),
-            self._make_layer(64, 1),
-            ConvBlock(64, 128, stride=2),
-            self._make_layer(128, 2),
-            ConvBlock(128, 256, stride=2),
-            self._make_layer(256, 8),
-            ConvBlock(256, 512, stride=2),
-            self._make_layer(512, 8),
-            ConvBlock(512, 1024, stride=2),
-            self._make_layer(1024, 4),
+        # ResNet-50 사전 훈련된 백본 사용
+        resnet = models.resnet50(pretrained=True)
+        
+        # ResNet의 마지막 두 레이어 제거 (avgpool, fc)
+        self.backbone = nn.Sequential(*list(resnet.children())[:-2])
+        
+        # 백본의 초기 레이어들 고정 (선택적)
+        if freeze_backbone_layers > 0:
+            layers_to_freeze = list(self.backbone.children())[:freeze_backbone_layers]
+            for layer in layers_to_freeze:
+                for param in layer.parameters():
+                    param.requires_grad = False
+            print(f"Frozen first {freeze_backbone_layers} layers of ResNet backbone")
+        
+        # ResNet-50의 출력 채널 수는 2048
+        backbone_out_channels = 2048
+        
+        # Feature Pyramid Network (FPN) 스타일 neck 추가
+        self.neck = nn.Sequential(
+            ConvBlock(backbone_out_channels, 1024, kernel_size=1),
+            ConvBlock(1024, 512, kernel_size=3),
+            ConvBlock(512, 1024, kernel_size=1),
+            ConvBlock(1024, 512, kernel_size=3)
         )
 
         # YOLO 디텍션 헤드
         self.head = nn.Sequential(
-            ConvBlock(1024, 512, kernel_size=1),
-            ConvBlock(512, 1024, kernel_size=3),
-            ConvBlock(1024, 512, kernel_size=1),
-            ConvBlock(512, 1024, kernel_size=3),
-            ConvBlock(1024, 512, kernel_size=1),
-            nn.Conv2d(512, (num_classes + 5) * 3, kernel_size=1)  # 3개의 앵커박스
+            ConvBlock(512, 256, kernel_size=1),
+            ConvBlock(256, 512, kernel_size=3),
+            ConvBlock(512, 256, kernel_size=1),
+            ConvBlock(256, 512, kernel_size=3),
+            ConvBlock(512, 256, kernel_size=1),
+            nn.Conv2d(256, (num_classes + 5) * 3, kernel_size=1)  # 3개의 앵커박스
         )
 
     def _make_layer(self, channels, num_blocks):
@@ -63,8 +74,14 @@ class YOLOv3(nn.Module):
         if isinstance(images, list):
             images = torch.stack(images)
             
-        features = self.backbone(images)
-        detections = self.head(features)
+        # ResNet backbone을 통한 특징 추출
+        backbone_features = self.backbone(images)
+        
+        # Neck을 통한 특징 정제
+        neck_features = self.neck(backbone_features)
+        
+        # Detection head를 통한 최종 예측
+        detections = self.head(neck_features)
         
         if self.training and targets is not None:
             # 학습 모드에서는 실제 loss 계산
@@ -290,5 +307,12 @@ class YOLOv3(nn.Module):
 
 def create_model(cfg):
     """설정에 따라 YOLOv3 모델 생성"""
-    model = YOLOv3(num_classes=cfg.NUM_CLASSES)
+    # 사전 훈련된 ResNet 백본을 사용한 YOLO 모델 생성
+    freeze_layers = getattr(cfg, 'FREEZE_BACKBONE_LAYERS', 3)  # 기본값 3
+    model = YOLOv3(num_classes=cfg.NUM_CLASSES, freeze_backbone_layers=freeze_layers)
+    
+    print(f"Created YOLO model with ResNet-50 backbone")
+    print(f"Number of classes: {cfg.NUM_CLASSES}")
+    print(f"Frozen backbone layers: {freeze_layers}")
+    
     return model
