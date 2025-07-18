@@ -155,11 +155,11 @@ class YOLOv3(nn.Module):
                 target_w = width * grid_w  # 정규화된 크기
                 target_h = height * grid_h  # 정규화된 크기
                 
-                # 타겟을 텐서로 변환
-                target_x = torch.tensor(target_x, device=device, dtype=torch.float32)
-                target_y = torch.tensor(target_y, device=device, dtype=torch.float32)
-                target_w = torch.tensor(target_w, device=device, dtype=torch.float32)
-                target_h = torch.tensor(target_h, device=device, dtype=torch.float32)
+                # 타겟을 텐서로 변환 (경고 해결)
+                target_x = torch.tensor(target_x, device=device, dtype=torch.float32) if not isinstance(target_x, torch.Tensor) else target_x.clone().detach().to(device)
+                target_y = torch.tensor(target_y, device=device, dtype=torch.float32) if not isinstance(target_y, torch.Tensor) else target_y.clone().detach().to(device)
+                target_w = torch.tensor(target_w, device=device, dtype=torch.float32) if not isinstance(target_w, torch.Tensor) else target_w.clone().detach().to(device)
+                target_h = torch.tensor(target_h, device=device, dtype=torch.float32) if not isinstance(target_h, torch.Tensor) else target_h.clone().detach().to(device)
                 
                 # 해당 grid cell의 예측값
                 pred_x = pred_xy[b, grid_y, grid_x, anchor_idx, 0]

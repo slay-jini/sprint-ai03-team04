@@ -120,31 +120,35 @@ class Trainer:
                 
                 # 예측을 위해 다시 eval 모드로 전환
                 self.model.eval()
-                outputs = self.model(images)
                 
-                # outputs가 None이 아닌지 확인
-                if outputs is not None:
-                    # mAP 계산을 위한 예측값과 정답 수집
-                    for out, target in zip(outputs, targets):
-                        # out이 예상한 형태인지 확인
-                        if isinstance(out, dict) and 'boxes' in out:
-                            pred_boxes.append(out['boxes'].cpu())
-                            pred_labels.append(out['labels'].cpu())
-                            pred_scores.append(out['scores'].cpu())
-                            gt_boxes.append(target['boxes'].cpu())
-                            gt_labels.append(target['labels'].cpu())
-                        else:
-                            print(f"Warning: Invalid output format: {type(out)}")
-                else:
-                    print(f"Warning: Model output is None during validation")
+                # mAP 계산이 활성화된 경우에만 예측 수집
+                if self.cfg.ENABLE_MAP_CALCULATION:
+                    outputs = self.model(images)
+                    
+                    # outputs가 None이 아닌지 확인
+                    if outputs is not None:
+                        # mAP 계산을 위한 예측값과 정답 수집
+                        for out, target in zip(outputs, targets):
+                            # out이 예상한 형태인지 확인
+                            if isinstance(out, dict) and 'boxes' in out:
+                                pred_boxes.append(out['boxes'].cpu())
+                                pred_labels.append(out['labels'].cpu())
+                                pred_scores.append(out['scores'].cpu())
+                                gt_boxes.append(target['boxes'].cpu())
+                                gt_labels.append(target['labels'].cpu())
+                            else:
+                                print(f"Warning: Invalid output format: {type(out)}")
+                    else:
+                        print(f"Warning: Model output is None during validation")
         
-        # mAP 계산 (예측값이 있는 경우에만)
-        if pred_boxes and gt_boxes:
+        # mAP 계산 (활성화된 경우에만)
+        if self.cfg.ENABLE_MAP_CALCULATION and pred_boxes and gt_boxes:
             val_map = calculate_mAP(pred_boxes, pred_labels, pred_scores, 
                                   gt_boxes, gt_labels)
         else:
             val_map = 0.0
-            print("Warning: No valid predictions for mAP calculation")
+            if self.cfg.ENABLE_MAP_CALCULATION:
+                print("Warning: No valid predictions for mAP calculation")
         
         val_loss = val_loss / len(self.val_loader) if len(self.val_loader) > 0 else 0.0
         
@@ -159,28 +163,45 @@ class Trainer:
             # 학습
             train_loss = self.train_one_epoch(epoch)
             
-            # 검증
-            val_loss, val_map = self.validate(epoch)
-            
-            # 히스토리 저장
-            self.history['train_loss'].append(train_loss)
-            self.history['val_loss'].append(val_loss)
-            self.history['val_map'].append(val_map)
-            
-            # 로깅
-            self.logger.info(
-                f"Epoch {epoch}: train_loss={train_loss:.4f}, "
-                f"val_loss={val_loss:.4f}, val_mAP={val_map:.4f}"
+            # Validation 실행 여부 확인
+            val_interval = getattr(self.cfg, 'VAL_INTERVAL', 1)  # 기본값 1
+            should_validate = (
+                self.cfg.ENABLE_VALIDATION and 
+                (epoch % val_interval == 0 or epoch == self.cfg.NUM_EPOCHS - 1)
             )
             
-            # 최고 성능 모델 저장
-            if val_loss < self.best_val_loss:
-                self.best_val_loss = val_loss
-                self.best_epoch = epoch
-                self.save_checkpoint(epoch, is_best=True)
-                self.patience_counter = 0
+            if should_validate:
+                # 검증
+                val_loss, val_map = self.validate(epoch)
+                
+                # 히스토리 저장
+                self.history['val_loss'].append(val_loss)
+                self.history['val_map'].append(val_map)
+                
+                # 로깅
+                self.logger.info(
+                    f"Epoch {epoch}: train_loss={train_loss:.4f}, "
+                    f"val_loss={val_loss:.4f}, val_mAP={val_map:.4f}"
+                )
+                
+                # 최고 성능 모델 저장
+                if val_loss < self.best_val_loss:
+                    self.best_val_loss = val_loss
+                    self.best_epoch = epoch
+                    self.save_checkpoint(epoch, is_best=True)
+                    self.patience_counter = 0
+                else:
+                    self.patience_counter += 1
             else:
-                self.patience_counter += 1
+                # Validation을 건너뛰는 에폭
+                self.history['val_loss'].append(self.history['val_loss'][-1] if self.history['val_loss'] else 0)
+                self.history['val_map'].append(self.history['val_map'][-1] if self.history['val_map'] else 0)
+                
+                # 간단한 로깅
+                self.logger.info(f"Epoch {epoch}: train_loss={train_loss:.4f} (validation skipped)")
+            
+            # 학습 손실만 기록 (매 에폭)
+            self.history['train_loss'].append(train_loss)
             
             # Early stopping 체크
             if self.patience_counter >= self.cfg.PATIENCE:

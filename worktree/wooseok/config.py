@@ -34,6 +34,8 @@ class Config:
     
     # 학습 관련
     SAVE_INTERVAL = 5  # 모델 저장 주기 (에폭)
+    ENABLE_VALIDATION = True  # Validation 활성화/비활성화
+    ENABLE_MAP_CALCULATION = False  # mAP 계산 비활성화 (시간 단축)
     VAL_RATIO = 0.2  # 검증 데이터 비율
     
     # GPU 설정
