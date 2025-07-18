@@ -30,7 +30,12 @@ def calculate_mAP(pred_boxes, pred_labels, pred_scores, gt_boxes, gt_labels, iou
         return 0.0
     
     try:
-        # 빈 텐서 필터링
+        # 빈 텐서 필터링 및 디버깅 정보
+        valid_pred_count = sum(1 for label in pred_labels if len(label) > 0)
+        valid_gt_count = sum(1 for label in gt_labels if len(label) > 0)
+        
+        print(f"Debug: Valid predictions: {valid_pred_count}, Valid ground truths: {valid_gt_count}")
+        
         filtered_pred_labels = [label for label in pred_labels if len(label) > 0]
         filtered_gt_labels = [label for label in gt_labels if len(label) > 0]
         
@@ -38,8 +43,16 @@ def calculate_mAP(pred_boxes, pred_labels, pred_scores, gt_boxes, gt_labels, iou
             print("Warning: No valid labels found")
             return 0.0
             
-        n_classes = max(torch.max(torch.cat(filtered_pred_labels)).item(), 
-                       torch.max(torch.cat(filtered_gt_labels)).item()) + 1
+        # 클래스 수 계산
+        all_pred_labels = torch.cat(filtered_pred_labels)
+        all_gt_labels = torch.cat(filtered_gt_labels)
+        
+        print(f"Debug: Pred label range: {all_pred_labels.min()}-{all_pred_labels.max()}")
+        print(f"Debug: GT label range: {all_gt_labels.min()}-{all_gt_labels.max()}")
+        
+        n_classes = max(all_pred_labels.max().item(), all_gt_labels.max().item()) + 1
+        print(f"Debug: Number of classes: {n_classes}")
+        
     except Exception as e:
         print(f"Error calculating number of classes: {e}")
         return 0.0

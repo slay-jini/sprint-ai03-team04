@@ -23,6 +23,13 @@ class Trainer:
             weight_decay=cfg.WEIGHT_DECAY
         )
         
+        # 학습률 스케줄러 추가
+        self.scheduler = optim.lr_scheduler.StepLR(
+            self.optimizer, 
+            step_size=3,  # 3 에폭마다
+            gamma=0.7     # 학습률을 0.7배로 감소
+        )
+        
         # 학습 이력
         self.history = {
             'train_loss': [],
@@ -183,6 +190,9 @@ class Trainer:
             # 주기적 체크포인트 저장
             if epoch % self.cfg.SAVE_INTERVAL == 0:
                 self.save_checkpoint(epoch)
+            
+            # 학습률 스케줄러 스텝
+            self.scheduler.step()
             
             # 학습 곡선 그리기
             self.plot_learning_curves()

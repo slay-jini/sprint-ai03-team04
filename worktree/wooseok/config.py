@@ -19,7 +19,7 @@ class Config:
     
     # 학습 파라미터
     BATCH_SIZE = 8
-    NUM_EPOCHS = 1  # 테스트를 위해 1로 설정
+    NUM_EPOCHS = 10  # 에폭 수 증가 (1 → 10)
     LEARNING_RATE = 0.0001  # 더 낮은 학습률로 변경
     MOMENTUM = 0.9
     WEIGHT_DECAY = 0.0005
