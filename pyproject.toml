@@ -32,3 +32,7 @@ dev = [
 pythonpath = [
   "."
 ]
+
+
+[tool.setuptools.packages.find]
+include = ["data*", "models*", "engine*", "configs*", "utils*"]
