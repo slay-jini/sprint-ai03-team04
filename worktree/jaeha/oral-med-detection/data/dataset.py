@@ -37,7 +37,7 @@ class PillDataset(torch.utils.data.Dataset):
 
             image_info = data['images'][0]
             file_name = image_info['file_name']
-            img_path = os.path.join(self.root, 'train_images', file_name)
+            # img_path = os.path.join(self.root, 'train_images', file_name)
 
             ann = data['annotations'][0]
             # 유효한 어노테이션이 없는 경우 건너뛰기
