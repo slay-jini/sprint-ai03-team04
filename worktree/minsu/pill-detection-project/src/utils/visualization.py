@@ -9,6 +9,8 @@ from pathlib import Path
 import torch
 import seaborn as sns
 
+from src.data import COCODataset
+from configs import ROOT_DIRECTORY
 
 class Visualizer:
     """검출 결과 시각화 클래스"""
@@ -168,7 +170,7 @@ class Visualizer:
             plt.close()
         else:
             plt.show()
-    
+
     def save_detection_results(self, results, output_dir):
         """검출 결과를 CSV로 저장"""
         import csv
@@ -178,6 +180,7 @@ class Visualizer:
         
         csv_path = output_dir / 'predictions.csv'
         
+        dataset = COCODataset(ROOT_DIRECTORY)
         with open(csv_path, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([
@@ -197,7 +200,7 @@ class Visualizer:
                     for box, label, score in zip(boxes, labels, scores):
                         x1, y1, x2, y2 = box
                         writer.writerow([
-                            ann_id, image_id, int(label),
+                            ann_id, image_id, dataset.cat_mapping[int(label)],
                             x1, y1, x2-x1, y2-y1, float(score)
                         ])
                         ann_id += 1
