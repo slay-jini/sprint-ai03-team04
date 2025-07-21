@@ -105,15 +105,21 @@ def main():
     
     # 모델 생성
     print("\n모델 생성...")
+    # num_classes 먼저 계산
+    if config['model']['num_classes'] == 'auto':
+        num_classes = train_dataset.get_num_classes() + 1  # 배경 포함
+        config['model']['num_classes'] = num_classes
+    else:
+        num_classes = config['model']['num_classes']
     model = create_model(
         config['model']['name'],
-        num_classes=config['model']['num_classes'],   
+        num_classes=num_classes,
         backbone=config['model'].get('backbone', 'resnet50'),     
         pretrained=config['model'].get('pretrained', True)        
     )
     
     print(f"모델 생성 완료: {config['model']['name']}")
-    print(f"클래스 수: {config['model']['num_classes']}")
+    print(f"클래스 수: {num_classes}")  # config가 아닌 계산된 값 출력
 
     # 학습기 생성
     trainer = Trainer(model, config, device=config.get('device', 'cuda'))

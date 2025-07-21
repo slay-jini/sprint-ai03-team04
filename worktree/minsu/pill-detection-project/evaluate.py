@@ -112,7 +112,7 @@ def main():
     # 시각화
     if args.visualize:
         print("\n결과 시각화...")
-        visualizer = Visualizer()
+        visualizer = Visualizer(num_classes=config['model']['num_classes'])
         output_dir = Path('outputs/evaluation')
         output_dir.mkdir(parents=True, exist_ok=True)
         

@@ -1,9 +1,14 @@
 # requirements.txt
 # 알약 검출 프로젝트 의존성
 
+# PyTorch 문제 시 삭제 후 따로 설치
+# pip uninstall torch torchvision torchaudio ultralytics -y
+# pip install torch==2.7.1+cu128 torchvision==0.22.1+cu128 torchaudio==2.7.1 --extra-index-url https://download.pytorch.org/whl/cu128
+
 # 딥러닝 프레임워크
-torch>=1.10.0
-torchvision>=0.11.0
+torch>=2.7.1
+torchvision>=0.22.1
+torchaudio>=2.7.1
 
 # 데이터 처리
 numpy>=1.19.0
@@ -30,3 +35,4 @@ ultralytics
 # 개발 도구 (선택사항)
 jupyter>=1.0.0
 ipywidgets>=7.6.0
+gitpython>=3.1.0

@@ -1,0 +1,8 @@
+# 데이터 폴더 무시
+ai03-level1-project/
+backups/
+__pycache__
+yolo_dataset/
+debugs/
+outputs/
+*.pt

@@ -46,6 +46,12 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+# PyTorch 문제 시 삭제 후 따로 설치
+
+# pip uninstall torch torchvision torchaudio ultralytics -y
+
+# pip install torch==2.7.1+cu128 torchvision==0.22.1+cu128 torchaudio==2.7.1 --extra-index-url https://download.pytorch.org/whl/cu128
+
 ### 2. 데이터 전처리
 
 ```bash

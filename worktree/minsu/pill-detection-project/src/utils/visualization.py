@@ -13,18 +13,33 @@ import seaborn as sns
 class Visualizer:
     """검출 결과 시각화 클래스"""
     
-    def __init__(self, class_names=None):
-        self.class_names = class_names or {
-            1: "삐콤씨에프정",
-            2: "스테인정",
-            3: "마그밀정",
-            4: "리렉스펜정"
-        }
-        self.colors = self._generate_colors(len(self.class_names))
+    def __init__(self, class_names=None, num_classes=None):
+        # config에서 전달받은 num_classes 사용
+        if num_classes is None:
+            num_classes = 4  # 기본값
+        
+        self.num_classes = num_classes
+        self.class_names = class_names or {i: f"Class {i}" for i in range(1, num_classes+1)}
+        self.colors = self._generate_colors(num_classes)
     
     def _generate_colors(self, n):
-        """클래스별 색상 생성"""
-        return plt.cm.rainbow(np.linspace(0, 1, n))
+        """클래스별 색상 생성 - Matplotlib 공식 방법"""
+        import matplotlib as mpl
+    
+        # 공식 문서 권장: qualitative colormap 사용
+        if n <= 10:
+            # 적은 클래스: 'tab10' 사용
+            cmap = mpl.colormaps['tab10']
+        elif n <= 20:
+            # 중간 클래스: 'tab20' 사용  
+            cmap = mpl.colormaps['tab20']
+        else:
+            # 많은 클래스: 'viridis' 등 sequential colormap 사용
+            cmap = mpl.colormaps['viridis']
+        
+        # 0부터 1까지 균등하게 분포된 값들로 색상 추출
+        colors = cmap(np.linspace(0, 1, n))
+        return colors
     
     def plot_image_with_boxes(self, image, predictions, save_path=None):
         """이미지와 박스 시각화"""

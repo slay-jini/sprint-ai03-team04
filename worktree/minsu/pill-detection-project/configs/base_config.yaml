@@ -9,7 +9,7 @@ data:
 # 모델 기본 설정
 model:
   name: "faster_rcnn"
-  num_classes: 5 # 4개 알약 + 배경
+  num_classes: auto
   backbone: "resnet50"
   pretrained: true
 

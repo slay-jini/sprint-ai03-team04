@@ -1,0 +1,9 @@
+names:
+  0: 기넥신에프정
+  1: 뮤테란캡슐
+  2: 가바토파정
+  3: 보령부스파정
+nc: 4
+path: yolo_dataset
+train: images
+val: images

@@ -101,7 +101,7 @@ def main():
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    visualizer = Visualizer()
+    visualizer = Visualizer(num_classes=saved_config['model']['num_classes'])
     visualizer.save_detection_results(predictions, output_dir)
     
     # 시각화
