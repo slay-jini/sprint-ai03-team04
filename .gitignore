@@ -1,1 +1,96 @@
-.worktree
+# =================================================================
+# 1. Python & Virtual Environment
+# =================================================================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+.env
+
+# =================================================================
+# 2. IDE & OS Specific
+# =================================================================
+# macOS
+.DS_Store
+.AppleDouble
+
+# JetBrains (PyCharm, etc.)
+.idea/
+
+# VSCode
+.vscode/
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints
+
+# =================================================================
+# 3. Project-Specific (가장 중요한 부분!)
+# =================================================================
+
+# 훈련 결과물 (runs, logs, checkpoints 등)
+# 모든 훈련 결과는 기본적으로 무시합니다.
+runs/
+logs/
+checkpoints/
+wandb/
+
+# 모델 가중치 파일
+# 모든 종류의 모델 파일을 무시합니다.
+*.pt
+*.pth
+*.onnx
+*.weights
+*.pb
+*.engine
+*_model/
+
+# 데이터셋 폴더
+# 데이터셋이 매우 커서 Git으로 관리하지 않을 경우, 아래 주석을 해제하세요.
+# train_images/
+# train_annotations/
+# test_images/
+
+# 만약 데이터셋은 Git으로 관리하고 싶지만, 특정 대용량 파일만 제외하고 싶다면
+# 다음과 같이 예외 규칙을 사용할 수 있습니다.
+# *.mp4
+# *.avi
+
+# 생성된 임시 파일이나 리포트
+*.csv
+*.log
+coverage.xml
+htmlcov/
+
+# =================================================================
+# 4. Testing & Linting Caches
+# =================================================================
+.cache/
+.mypy_cache/
+.pytest_cache/
+.tox/
