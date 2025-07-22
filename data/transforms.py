@@ -69,8 +69,8 @@ def get_transform_old(train: bool):
     transforms = []
     transforms.append(T.ToImage())
     transforms.append(T.ToDtype(torch.float32, scale=True))
-    if train:
-        transforms.append(T.RandomHorizontalFlip(0.5))
+    # if train:
+    #     transforms.append(T.RandomHorizontalFlip(0.5))
     return T.Compose(transforms)
 
 
