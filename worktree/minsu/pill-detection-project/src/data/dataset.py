@@ -68,6 +68,7 @@ class COCODataset(Dataset):
         # 2단계: 클래스 매핑 생성 (연속적인 1, 2, 3, ... 형태)
         sorted_ids = sorted(all_category_ids)
         self.class_mapping = {original_id: new_id for new_id, original_id in enumerate(sorted_ids, 1)}
+        self.cat_mapping = {new_id: original_id for new_id, original_id in enumerate(sorted_ids, 1)}
         
         # 3단계: 어노테이션 전처리 및 클래스 매핑 적용
         total_boxes = 0
