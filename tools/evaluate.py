@@ -49,7 +49,7 @@ def main():
     # --- 데이터셋 준비 ---
     # 평가 시에는 데이터 증강을 하지 않으므로 train=False
     dataset_eval = PillDataset(root=ROOT_DIRECTORY, transforms=get_transform(train=False))
-    num_classes = len(dataset_eval.class_ids) + 1
+    num_classes = len(dataset_eval.map_cat_id_to_label) + 1
     
     # 평가 시에는 전체 데이터셋을 사용
     # 이 부분은 실제 데이터 구조에 따라 달라질 수 있습니다.
@@ -79,9 +79,9 @@ def main():
     print("\n--- 최종 평가 결과 ---")
     print(f"  mAP@0.5 (대회 기준): {map_results['map_50']:.4f}") # IoU 0.50 에서의 mAP
     print(f"  mAP (전체): {map_results['map']:.4f}")
-    print(f"  mAP (small): {results['map_small']:.4f}")
-    print(f"  mAP (medium): {results['map_medium']:.4f}")
-    print(f"  mAP (large): {results['map_large']:.4f}")
+    print(f"  mAP (small): {map_results['map_small']:.4f}")
+    print(f"  mAP (medium): {map_results['map_medium']:.4f}")
+    print(f"  mAP (large): {map_results['map_large']:.4f}")
 
 
 if __name__ == '__main__':
