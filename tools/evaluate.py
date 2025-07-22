@@ -61,6 +61,7 @@ def main():
     )
 
     # --- 모델 로드 ---
+    # TODO: configs 반영해서 생성하기
     model = create_faster_rcnn_model(num_classes)
     try:
         model.load_state_dict(torch.load(args.checkpoint, map_location=DEVICE))

@@ -2,7 +2,7 @@
 import torch
 from tqdm.auto import tqdm
 
-def train_one_epoch(model, optimizer, data_loader, device, epoch, num_epochs):
+def train_one_epoch(model, optimizer, data_loader, device, epoch, num_epochs, grad_clip_norm=0.0):
     """한 에폭의 훈련을 수행합니다."""
     total_loss = 0.0
     
@@ -18,6 +18,11 @@ def train_one_epoch(model, optimizer, data_loader, device, epoch, num_epochs):
 
         optimizer.zero_grad()
         losses.backward()
+
+        # 그래디언트 클리핑 (값이 0보다 클 때만 실행)
+        if grad_clip_norm > 0:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip_norm)
+
         optimizer.step()
 
         total_loss += losses.item()
