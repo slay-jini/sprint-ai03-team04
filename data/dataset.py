@@ -6,6 +6,7 @@ import json
 from PIL import Image
 from tqdm.auto import tqdm
 from collections import defaultdict
+import configs.base_config as cfg
 
 # =================================================================================
 # 1. 데이터셋 클래스 정의 (PillDataset)
@@ -15,7 +16,6 @@ class PillDataset(torch.utils.data.Dataset):
         self.root = root
         self.transforms = transforms
         self.min_box_size = min_box_size # 추가
-
 
         # --- 최종 데이터를 담을 인스턴스 변수 초기화 ---
         self.images = []
@@ -86,20 +86,44 @@ class PillDataset(torch.utils.data.Dataset):
         self.images.sort(key=lambda x: x['file_name']) # 파일명 순으로 정렬하여 일관성 유지
 
     def __getitem__(self, idx):
-        img_path = self.images[idx]
-        filename = os.path.basename(img_path)
+        # image = self.images[idx]
+        # filename = os.path.basename(img_path)
+        # abspath?
+        
+        # filename = image.file_name
+        # img_path = os.path.join(cfg.ROOT_DIRECTORY, cfg.TRAIN_IMAGE_DIRECTORY, filename)
+        # try:
+        #     img = Image.open(cfg.ROOT_DIRECTORY + filename).convert("RGB")
+        # except FileNotFoundError:
+        #     # Colab 환경에서는 파일을 못찾으면 다음으로 넘어가는게 중요
+        #     return None
 
-        try:
-            img = Image.open(img_path).convert("RGB")
-        except FileNotFoundError:
-            # Colab 환경에서는 파일을 못찾으면 다음으로 넘어가는게 중요
-            return None
+        # annotation = self.image_to_labels[filename]
+        # annotation =image[filename]
 
-        annotation = self.image_to_labels[filename]
+        img_info = self.images[idx]
+        img_path = os.path.join(self.root, 'train_images', img_info['file_name'])
+        # image를 numpy 배열로 바로 읽습니다.
+        image = np.array(Image.open(img_path).convert("RGB"))
 
-        target = {}
-        target["boxes"] = annotation["boxes"]
-        target["labels"] = annotation["labels"]
+        anns = self.annotations[img_info['id']]
+        
+        boxes = []
+        labels = []
+        for ann in anns:
+            x, y, w, h = ann['bbox']
+            x1, y1, x2, y2 = x, y, x + w, y + h
+            boxes.append([x1, y1, x2, y2])
+            labels.append(ann['category_id'])
+
+        target = {
+            'boxes': torch.as_tensor(boxes),
+            'labels': torch.as_tensor(labels)
+        }
+
+        # target = {}
+        # target["boxes"] = annotation["boxes"]
+        # target["labels"] = annotation["labels"]
         #target["image_id"] = annotation["image_id"]
         #target["area"] = annotation["area"]
         #target["iscrowd"] = annotation["iscrowd"]
@@ -107,8 +131,14 @@ class PillDataset(torch.utils.data.Dataset):
         if self.transforms:
             # torchvision v2 transform은 이미지와 타겟을 함께 받습니다.
             # Albumentations는 numpy 배열을 입력으로 기대
-            img, target = self.transforms(np.array(img), target)
-
+            # img, target = self.transforms(image, target)
+            transformed = self.transforms(image=image, **target)
+            image = transformed['image']
+            # 변환 후의 박스와 라벨을 다시 가져와 텐서로 만듭니다.
+            target = {
+                'boxes': torch.as_tensor(transformed['boxes'], dtype=torch.float32) if transformed['boxes'] else torch.zeros((0, 4), dtype=torch.float32),
+                'labels': torch.as_tensor(transformed['labels'], dtype=torch.int64) if transformed['labels'] else torch.zeros((0,), dtype=torch.int64)
+            }
         return img, target
 
     def __len__(self):

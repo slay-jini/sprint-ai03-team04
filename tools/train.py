@@ -29,7 +29,7 @@ def main():
         root=cfg.ROOT_DIRECTORY, 
         transforms=get_transform(train=False),
         min_box_size=cfg.MIN_BOX_SIZE)
-    
+
     num_classes = len(dataset.map_cat_id_to_label) + 1
 
     # 훈련/검증 데이터셋 분할
@@ -72,8 +72,8 @@ def main():
 
         # mAP는 매 에폭마다 계산하면 시간이 오래 걸리므로,
         # 마지막 에폭이나 특정 주기로만 계산할 수 있습니다.
-        if (epoch + 1) % 5 == 0 or epoch == cfg.NUM_EPOCHS - 1:
-            map_results = calculate_map(...)
+        # if (epoch + 1) % 5 == 0 or epoch == cfg.NUM_EPOCHS - 1:
+        #     map_results = calculate_map(...)
 
         lr_scheduler.step()
 
