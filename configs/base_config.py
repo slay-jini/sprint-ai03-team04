@@ -44,8 +44,8 @@ fast_rcnn_model = dict(
     backbone='ResNet50',
     pretrained=True,
     # Faster R-CNN 특화 설정
-    anchor_sizes=[[32], [64], [128], [256], [512]],
-    aspect_ratios=[0.5, 1.0, 2.0],
+    anchor_sizes=((32,), (64,), (128,), (256,), (512,)),
+    aspect_ratios=((0.5, 1.0, 2.0),),
     # RPN 설정
     rpn_pre_nms_top_n_train=2000,
     rpn_post_nms_top_n_test=1000,

@@ -134,22 +134,13 @@ class PillDataset(torch.utils.data.Dataset):
             # torchvision v2 transform은 이미지와 타겟을 함께 받습니다.
             # Albumentations는 numpy 배열을 입력으로 기대
             # img, target = self.transforms(image, target)
-            transformed = self.transforms(image=image, **target)
-            # print(f"target2: {target['boxes'].shape}")
+            transformed = self.transforms(image=image, boxes=target['boxes'], labels=target['labels'])
             image = transformed['image']
-
-            if target['boxes'].ndim == 3:
-                target['boxes'] = target['boxes'].squeeze(0)
-            # labels도 마찬가지로 처리할 수 있습니다.
-            if target['labels'].ndim == 2:
-                target['labels'] = target['labels'].squeeze(0)
 
             # 변환 후의 박스와 라벨을 다시 가져와 텐서로 만듭니다.
             target = {
-                # 'boxes': torch.as_tensor(transformed['boxes'], dtype=torch.float32) if transformed['boxes'] else torch.zeros((0, 4), dtype=torch.float32),
-                'boxes': transformed['boxes'],
-                # 'labels': torch.as_tensor(transformed['labels'], dtype=torch.int64) if transformed['labels'] else torch.zeros((0,), dtype=torch.int64)
-                'labels': transformed['labels']
+                'boxes': torch.as_tensor(transformed['boxes'], dtype=torch.float32) if transformed['boxes'] else torch.zeros((0, 4), dtype=torch.float32),
+                'labels': torch.as_tensor(transformed['labels'], dtype=torch.int64) if transformed['labels'] else torch.zeros((0,), dtype=torch.int64)
             }
         return image, target
 

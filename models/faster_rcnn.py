@@ -1,12 +1,4 @@
 # models/faster_rcnn.py
-
-def create_faster_rcnn_model(num_classes):
-    model = torchvision.models.detection.fasterrcnn_resnet50_fpn(weights="DEFAULT")
-    in_features = model.roi_heads.box_predictor.cls_score.in_features
-    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
-    return model
-
-# models/faster_rcnn.py
 """Faster R-CNN 모델 구현"""
 
 import torch
