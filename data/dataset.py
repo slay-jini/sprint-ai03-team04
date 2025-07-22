@@ -133,8 +133,7 @@ class PillDataset(torch.utils.data.Dataset):
         if self.transforms:
             # torchvision v2 transform은 이미지와 타겟을 함께 받습니다.
             # Albumentations는 numpy 배열을 입력으로 기대
-            # img, target = self.transforms(image, target)
-            transformed = self.transforms(image=image, boxes=target['boxes'], labels=target['labels'])
+            transformed = self.transforms(image=image, boxes=boxes, labels=labels)
             image = transformed['image']
 
             # 변환 후의 박스와 라벨을 다시 가져와 텐서로 만듭니다.
