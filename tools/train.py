@@ -43,7 +43,7 @@ def main():
     data_loader_valid = DataLoader(valid_subset, batch_size=cfg.BATCH_SIZE_VAL, shuffle=False, num_workers=cfg.NUM_WORKERS, collate_fn=collate_fn)
 
     # 모델, 옵티마이저, 콜백 준비
-    model = create_model(num_classes).to(cfg.DEVICE)
+    model = create_model("faster_rcnn", num_classes).to(cfg.DEVICE)
     optimizer = torch.optim.SGD(model.parameters(), lr=cfg.LEARNING_RATE, momentum=cfg.MOMENTUM, weight_decay=cfg.WEIGHT_DECAY)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
     
