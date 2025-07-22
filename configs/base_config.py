@@ -35,3 +35,18 @@ NUM_WORKERS = 2 # os.cpu_count()
 
 # [추가] 데이터셋에서 무시할 최소 박스 크기 (픽셀 단위)
 MIN_BOX_SIZE = 10 
+
+fast_rcnn_model = dict(
+    type='FasterRCNN',
+    backbone='ResNet50',
+    pretrained=True,
+    # Faster R-CNN 특화 설정
+    anchor_sizes=[[32], [64], [128], [256], [512]],
+    aspect_ratios=[0.5, 1.0, 2.0],
+    # RPN 설정
+    rpn_pre_nms_top_n_train=2000,
+    rpn_post_nms_top_n_test=1000,
+    # ... (기타 rpn, roi 설정들)
+    box_nms_thresh=0.5,
+    box_detections_per_img=100
+)
