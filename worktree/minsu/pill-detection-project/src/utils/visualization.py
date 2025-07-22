@@ -170,7 +170,7 @@ class Visualizer:
             plt.close()
         else:
             plt.show()
-    
+
     def save_detection_results(self, results, output_dir):
         """검출 결과를 CSV로 저장"""
         import csv
@@ -182,6 +182,7 @@ class Visualizer:
 
         dataset = COCODataset("./ai03-level1-project/train_images", "./ai03-level1-project/train_annotations")
         
+        dataset = COCODataset(ROOT_DIRECTORY)
         with open(csv_path, 'w', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([
