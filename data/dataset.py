@@ -151,7 +151,7 @@ class PillDataset(torch.utils.data.Dataset):
                 # 'labels': torch.as_tensor(transformed['labels'], dtype=torch.int64) if transformed['labels'] else torch.zeros((0,), dtype=torch.int64)
                 'labels': transformed['labels']
             }
-        return img, target
+        return image, target
 
     def __len__(self):
         return len(self.images)
