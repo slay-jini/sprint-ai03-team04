@@ -5,99 +5,88 @@ import glob
 import json
 from PIL import Image
 from tqdm.auto import tqdm
+from collections import defaultdict
 
 # =================================================================================
 # 1. 데이터셋 클래스 정의 (PillDataset)
 # =================================================================================
 class PillDataset(torch.utils.data.Dataset):
-    def __init__(self, root, transforms=None):
+    def __init__(self, root, transforms=None, min_box_size=10):  # min_box_size 인자 추가
         self.root = root
         self.transforms = transforms
-        self.annotation_paths = sorted(glob.glob(os.path.join(self.root, 'train_annotations', '**', '*.json'), recursive=True))
+        self.min_box_size = min_box_size # 추가
 
-        self.categories = self._get_all_categories()
-        self.cat_to_id = {cat['name']: cat['id'] for cat in self.categories}
-        self.id_to_cat = {cat['id']: cat['name'] for cat in self.categories}
 
-        self.class_ids = sorted(self.cat_to_id.values())
-        self.map_cat_id_to_label = {cat_id: i + 1 for i, cat_id in enumerate(self.class_ids)}
+        # --- 최종 데이터를 담을 인스턴스 변수 초기화 ---
+        self.images = []
+        self.annotations = defaultdict(list)
+        self.id_to_cat = {}
+        self.map_cat_id_to_label = {}
+        self.map_label_to_cat_id = {}
 
-        self.image_paths = sorted(glob.glob(os.path.join(self.root, 'train_images', '*.png')))
-        self.image_to_labels = self._get_all_labels()
+        # --- 모든 전처리를 수행하는 단일 메소드 호출 ---
+        self._load_data()
 
-        print(f"총 {len(self.annotation_paths)}개의 annotation 파일을 찾았습니다.")
-        print(f"총 {len(self.class_ids)}개의 고유한 클래스를 발견했습니다.")
+        print(f"데이터셋 준비 완료: {len(self.images)}개 이미지, {len(self.map_cat_id_to_label)}개 클래스")
 
-    def _get_all_labels(self):
-       image_to_labels = {}
-       for ann_path in tqdm(self.annotation_paths, desc="라벨 정보 로딩 중"):
 
-            with open(ann_path, 'r') as f:
+    def _load_data(self):
+        """
+        데이터를 로드하고 전처리하는 모든 과정을 통합하여 관리합니다.
+        단 한 번의 파일 순회로 효율성을 극대화합니다.
+        """
+        print("데이터 로딩 및 전처리 시작...")
+        annotation_paths = glob.glob(os.path.join(self.root, 'train_annotations', '**', '*.json'), recursive=True)
+
+        # 1. 임시 변수: 모든 정보를 한 번의 루프로 수집
+        raw_images = {}
+        # defaultdict를 여기서 사용합니다!
+        raw_annotations = defaultdict(list)
+        present_category_ids = set()
+
+        for ann_path in tqdm(annotation_paths, desc="어노테이션 파일 처리 중"):
+            with open(ann_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-            image_info = data['images'][0]
-            file_name = image_info['file_name']
-            # img_path = os.path.join(self.root, 'train_images', file_name)
+            # 이미지 정보 수집
+            for img in data.get('images', []):
+                if img['id'] not in raw_images:
+                    raw_images[img['id']] = img
+            
+            # 카테고리 이름 정보 수집
+            for cat in data.get('categories', []):
+                if cat['id'] not in self.id_to_cat:
+                    self.id_to_cat[cat['id']] = cat['name']
 
-            ann = data['annotations'][0]
-            # 유효한 어노테이션이 없는 경우 건너뛰기
-            #if not annotations or not any(ann.get('bbox') for ann in annotations):
-            #    return None
+            # 유효한 어노테이션 및 실제 사용된 카테고리 ID 수집
+            for ann in data.get('annotations', []):
+                bbox = ann.get('bbox', [])
+                if len(bbox) == 4 and bbox[2] > self.min_box_size and bbox[3] > self.min_box_size:
+                    raw_annotations[ann['image_id']].append(ann)
+                    present_category_ids.add(ann['category_id'])
+        
+        # 2. 클래스 매핑 생성
+        sorted_ids = sorted(list(present_category_ids))
+        self.map_cat_id_to_label = {cat_id: i + 1 for i, cat_id in enumerate(sorted_ids)}
+        self.map_label_to_cat_id = {v: k for k, v in self.map_cat_id_to_label.items()}
 
-            # bbox 정보가 없거나 유효하지 않은 어노테이션은 건너뜁니다.
-            if 'bbox' not in ann or not ann['bbox']:
-                continue
-            x_min, y_min, w, h = ann['bbox']
-            # bbox가 비정상적인 경우 건너뜁니다.
-            if w <= 0 or h <= 0:
-                continue
-            x_max, y_max = x_min + w, y_min + h
-            box = torch.as_tensor([x_min, y_min, x_max, y_max], dtype=torch.int64)
-
-            original_cat_id = ann['category_id']
-            label = self.map_cat_id_to_label[original_cat_id]
-            label = torch.as_tensor([label], dtype=torch.int64)
-
-            # 유효한 박스가 하나도 없으면 이 데이터는 무시합니다.
-            #if not box:
-            #    return None
-
-            #image_id = torch.tensor([image_info['file_name']])
-            #area = torch.tensor((box[3] - box[1]) * (box[2] - box[0]))
-            #iscrowd = torch.zeros((1), dtype=torch.int64)
-
-            if file_name in image_to_labels:
-                image_to_labels[file_name]['boxes'] = torch.cat([image_to_labels[file_name]['boxes'], box.unsqueeze(0)], dim=0)
-                image_to_labels[file_name]['labels'] = torch.cat([image_to_labels[file_name]['labels'], label], dim=0)
-                #image_to_labels[file_name]['image_id'] = torch.cat([image_to_labels[file_name]['image_id'], image_id], dim=0)
-                #image_to_labels[file_name]['area'] = torch.cat([image_to_labels[file_name]['area'], area], dim=0)
-                #image_to_labels[file_name]['iscrowd'] = torch.cat([image_to_labels[file_name]['iscrowd'], area], dim=0)
-            else:
-                image_to_labels[file_name] = {}
-                image_to_labels[file_name]['boxes'] =  box.unsqueeze(0)
-                image_to_labels[file_name]['labels'] =  label
-                #image_to_labels[file_name]['image_id'] = image_id
-                #image_to_labels[file_name]['area'] = area
-                #image_to_labels[file_name]['iscrowd'] = iscrowd
-
-       return image_to_labels
-
-
-    def _get_all_categories(self):
-        all_cats = {}
-        # tqdm을 사용해 카테고리 로딩 진행 상황을 보여줍니다.
-        for ann_path in tqdm(self.annotation_paths, desc="카테고리 정보 로딩 중"):
-            with open(ann_path, 'r') as f:
-                data = json.load(f)
-                if 'categories' in data:
-                    for cat in data['categories']:
-                        if cat['id'] not in all_cats:
-                            all_cats[cat['id']] = cat
-        return list(all_cats.values())
-
+        # 3. 최종 어노테이션 생성 (클래스 ID 변환)
+        for img_id, anns in raw_annotations.items():
+            # 이 이미지에 유효한 어노테이션이 하나라도 있는지 확인
+            if raw_images.get(img_id):
+                for ann in anns:
+                    # ann['category_id']는 원본 ID이므로, 매핑된 라벨로 교체
+                    original_cat_id = ann['category_id']
+                    if original_cat_id in self.map_cat_id_to_label:
+                         ann['category_id'] = self.map_cat_id_to_label[original_cat_id]
+                         self.annotations[img_id].append(ann)
+        
+        # 4. 최종 이미지 목록 생성 (유효한 어노테이션이 있는 이미지만)
+        self.images = [img for img_id, img in raw_images.items() if img_id in self.annotations]
+        self.images.sort(key=lambda x: x['file_name']) # 파일명 순으로 정렬하여 일관성 유지
 
     def __getitem__(self, idx):
-        img_path = self.image_paths[idx]
+        img_path = self.images[idx]
         filename = os.path.basename(img_path)
 
         try:
@@ -105,7 +94,6 @@ class PillDataset(torch.utils.data.Dataset):
         except FileNotFoundError:
             # Colab 환경에서는 파일을 못찾으면 다음으로 넘어가는게 중요
             return None
-
 
         annotation = self.image_to_labels[filename]
 
@@ -118,12 +106,13 @@ class PillDataset(torch.utils.data.Dataset):
 
         if self.transforms:
             # torchvision v2 transform은 이미지와 타겟을 함께 받습니다.
-            img, target = self.transforms(img, target)
+            # Albumentations는 numpy 배열을 입력으로 기대
+            img, target = self.transforms(np.array(img), target)
 
         return img, target
 
     def __len__(self):
-        return len(self.image_paths)
+        return len(self.images)
 
     def get_num_classes(self):
-        return len(self.class_ids) + 1  # 배경 클래스 포함
+        return len(self.map_cat_id_to_label) + 1  # 배경 클래스 포함

@@ -21,10 +21,16 @@ def main():
     print(f"사용할 장치: {cfg.DEVICE}")
 
     # 데이터셋 준비
-    dataset = PillDataset(root=cfg.ROOT_DIRECTORY, transforms=get_transform(train=True))
-    dataset_val = PillDataset(root=cfg.ROOT_DIRECTORY, transforms=get_transform(train=False))
+    dataset = PillDataset(
+        root=cfg.ROOT_DIRECTORY, 
+        transforms=get_transform(train=True),
+        min_box_size=cfg.MIN_BOX_SIZE)
+    dataset_val = PillDataset(
+        root=cfg.ROOT_DIRECTORY, 
+        transforms=get_transform(train=False),
+        min_box_size=cfg.MIN_BOX_SIZE)
     
-    num_classes = len(dataset.class_ids) + 1
+    num_classes = len(dataset.map_cat_id_to_label) + 1
 
     # 훈련/검증 데이터셋 분할
     indices = torch.randperm(len(dataset)).tolist()
@@ -48,7 +54,10 @@ def main():
     for epoch in range(cfg.NUM_EPOCHS):
         # --- 훈련 ---
         model.train() # 훈련 시작 전, 상태를 명시적으로 설정
-        avg_train_loss = train_one_epoch(model, optimizer, data_loader_train, cfg.DEVICE, epoch, cfg.NUM_EPOCHS)
+        avg_train_loss = train_one_epoch(
+            model, optimizer, data_loader_train, 
+            cfg.DEVICE, epoch, cfg.NUM_EPOCHS,
+            grad_clip_norm=cfg.GRADIENT_CLIP_NORM)
 
         # 주기에 따라 mAP 계산 여부 결정
         is_map_cycle = (epoch + 1) % cfg.MAP_CALC_CYCLE == 0 or (epoch + 1) == cfg.NUM_EPOCHS
