@@ -27,7 +27,7 @@
 1.  **저장소 복제 (Clone Repository):**
     ```bash
     git clone [Your-Repository-URL]
-    cd pill-detection
+    cd sprint-ai03-team04
     ```
 2.  **가상 환경 생성 및 활성화 (Create & Activate Virtual Environment):**
     ```bash
