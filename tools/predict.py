@@ -6,7 +6,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 from torch.utils.data import DataLoader
 from PIL import Image
-
+import glob, os
 # 로컬 모듈 임포트
 from configs import base_config as cfg
 from data.dataset import PillDataset # '매핑 정보'를 얻기 위해 임포트
@@ -81,7 +81,6 @@ def main():
                 boxes_cpu = output['boxes'][keep].cpu()
                 labels_cpu = output['labels'][keep].cpu()
                 scores_cpu = output['scores'][keep].cpu()
-
 
                 for box, label, score in zip(boxes_cpu, labels_cpu, scores_cpu):
                     # --- 여기서 변환이 일어납니다! ---
