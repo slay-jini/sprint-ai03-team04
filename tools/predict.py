@@ -91,7 +91,8 @@ def main():
                     w, h = x_max - x, y_max - y
 
                     results.append({
-                        'image_id': int(os.path.splitext(filenames[i])[0]), # 예: '123.png' -> 123
+                        # TODO: int 필요한지 알아보기
+                        'image_id': os.path.splitext(filenames[i])[0], # 예: '123.png' -> 123
                         'category_id': original_category_id,
                         'score': score.item(),
                         'bbox_x': x, 'bbox_y': y, 'bbox_w': w, 'bbox_h': h,
