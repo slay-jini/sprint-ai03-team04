@@ -76,20 +76,20 @@
 
 훈련된 모델을 사용하여 테스트 이미지에 대한 예측을 수행하고, 대회 제출 형식의 `submission.csv` 파일을 생성합니다.
 
-1.  **명령어 실행:**
-    ```bash
-    python tools/predict.py \
-        --checkpoint [사용할 모델의 .pth 파일 경로] \
-        --image_dir [테스트 이미지가 있는 폴더 경로] \
-        --output [결과를 저장할 CSV 파일명 (기본값: submission.csv)]
-    ```
-2.  **실행 예시:**
-    ```bash
-    python tools/predict.py \
-        --checkpoint checkpoints/EPOCH\(12\)-LOSS\(0.0987\).pth \
-        --image_dir path/to/your/test_images \
-        --output my_submission.csv
-    ```
+   1.  **명령어 실행:**
+       ```bash
+       python tools/predict.py \
+           --checkpoint [사용할 모델의 .pth 파일 경로] \
+           --image_dir [테스트 이미지가 있는 폴더 경로] \
+           --output [결과를 저장할 CSV 파일명 (기본값: submission.csv)]
+       ```
+   2.  **실행 예시:**
+       ```bash
+       python tools/predict.py \
+           --checkpoint checkpoints/EPOCH\(12\)-LOSS\(0.0987\).pth \
+           --image_dir path/to/your/test_images \
+           --output my_submission.csv
+       ```
 
 ## **5. 향후 개발 계획 (Future Work)**
 
