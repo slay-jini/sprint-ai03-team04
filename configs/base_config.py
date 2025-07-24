@@ -5,7 +5,8 @@ import os
 # --- 설정 변수 ---
 # --- 기본 설정 ---
 # 데이터 경로 (필요 시 실제 경로로 수정)
-ROOT_DIRECTORY = "path/to/your/dataset"
+# ROOT_DIRECTORY = "path/to/your/dataset"
+ROOT_DIRECTORY = "/kaggle/input/train-pill"
 # 체크포인트 저장 경로
 CHECKPOINT_DIR = "checkpoints"
 TEST_DIRECTORY = os.path.join(ROOT_DIRECTORY, 'test_images')
