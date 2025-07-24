@@ -19,9 +19,10 @@ def get_transform(train: bool):
     transforms = []
     transforms.append(T.ToImage())
     transforms.append(T.ToDtype(torch.float32, scale=True))
+    transforms.append(T.Normalize(mean=MEAN, std=STD))#정규화 추가
     if train:
         transforms.append(T.RandomVerticalFlip(0.5)) # 수직 뒤집기로 변경
-        transforms.append(T.Normalize(mean=MEAN, std=STD))#정규화 추가
+        
     return T.Compose(transforms)
 
 
