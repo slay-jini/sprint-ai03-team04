@@ -34,4 +34,4 @@ TRAIN_VALID_SPLIT = 0.8
 NUM_WORKERS = 2 # os.cpu_count()
 
 # 점수 임계값
-SCORE_THRESHOLD = 0.05
+SCORE_THRESHOLD = 0.5
